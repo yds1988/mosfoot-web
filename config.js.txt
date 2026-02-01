@@ -1,0 +1,11 @@
+// Конфигурация для веб-интерфейса MosFoot Bot
+const SUPABASE_URL = 'https://xxxxx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+
+// Не изменяйте этот файл напрямую!
+// Скопируйте его в config.local.js и измените там// Конфигурация для веб-интерфейса MosFoot Bot
+const SUPABASE_URL = 'https://xxxxx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+
+// Не изменяйте этот файл напрямую!
+// Скопируйте его в config.local.js и измените там
