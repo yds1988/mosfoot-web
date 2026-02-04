@@ -1,0 +1,1046 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MosFoot Bot — Статистика футбольного сообщества</title>
+    <meta name="description" content="Официальная статистика футбольного сообщества MosFoot. Топ игроков, голы, передачи, локации и многое другое.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Исправленная ссылка на Chart.js с корректной версией -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* === ГЛОБАЛЬНЫЕ СТИЛИ === */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1a73e8; --secondary: #fbbc05; --dark: #1f2937; --light: #f9fafb;
+            --success: #34a853; --warning: #f59e0b; --danger: #ef4444; --info: #2563eb;
+            --gray: #6b7280; --border-radius: 12px; --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
+            color: var(--dark); line-height: 1.6; min-height: 100vh;
+        }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+
+        /* === ШАПКА САЙТА === */
+        header { 
+            background: rgba(255,255,255,0.95); 
+            box-shadow: var(--box-shadow); 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            padding: 15px 0; 
+        }
+        .header-content { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 20px;
+        }
+        .logo { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+        }
+        .logo-icon { 
+            font-size: 2.5rem; 
+            color: var(--primary); 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2); 
+        }
+        .logo-text { 
+            font-size: 1.8rem; 
+            font-weight: 800; 
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            color: transparent; 
+        }
+        .logo-subtext { 
+            font-size: 0.9rem; 
+            color: var(--gray); 
+            margin-top: 3px; 
+        }
+        nav ul { 
+            display: flex; 
+            list-style: none; 
+            gap: 10px; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+        }
+        nav a { 
+            display: block; 
+            padding: 10px 20px; 
+            color: var(--dark); 
+            text-decoration: none; 
+            font-weight: 600; 
+            border-radius: 50px; 
+            transition: var(--transition); 
+            background: rgba(255,255,255,0.8); 
+            box-shadow: var(--box-shadow); 
+        }
+        nav a:hover, nav a.active { 
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+            color: white; 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 12px rgba(26,115,232,0.3); 
+        }
+
+        /* === ГЛАВНЫЙ БЛОК (ГЕРОЙ) === */
+        .hero { 
+            text-align: center; 
+            padding: 60px 20px; 
+            color: white; 
+            background: rgba(0,0,0,0.4); 
+            border-radius: var(--border-radius); 
+            margin: 30px 0; 
+            max-width: 1000px; 
+            margin-left: auto; 
+            margin-right: auto; 
+        }
+        .hero h1 { 
+            font-size: 3.5rem; 
+            margin-bottom: 20px; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
+            background: linear-gradient(45deg, var(--secondary), #ffffff); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            color: transparent; 
+        }
+        .hero p { 
+            font-size: 1.5rem; 
+            margin-bottom: 30px; 
+            max-width: 800px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            color: rgba(255,255,255,0.9); 
+        }
+
+        /* === КАРТОЧКИ СТАТИСТИКИ === */
+        .stats-cards { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); 
+            gap: 20px; 
+            margin-top: 30px; 
+        }
+        .stat-card { 
+            background: rgba(255,255,255,0.9); 
+            padding: 25px; 
+            border-radius: var(--border-radius); 
+            text-align: center; 
+            box-shadow: var(--box-shadow); 
+            transition: var(--transition); 
+        }
+        .stat-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+        }
+        .stat-card i { 
+            font-size: 2.5rem; 
+            margin-bottom: 15px; 
+            color: var(--primary); 
+        }
+        .stat-card .number { 
+            font-size: 2.2rem; 
+            font-weight: 800; 
+            color: var(--dark); 
+            margin-bottom: 5px; 
+        }
+        .stat-card .label { 
+            font-size: 1.1rem; 
+            color: var(--gray); 
+            font-weight: 500; 
+        }
+
+        /* === СЕКЦИИ === */
+        section { 
+            background: rgba(255,255,255,0.95); 
+            border-radius: var(--border-radius); 
+            padding: 30px; 
+            margin: 30px 0; 
+            box-shadow: var(--box-shadow); 
+            transition: var(--transition); 
+        }
+        section:hover { 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+        }
+        section h2 { 
+            font-size: 2.2rem; 
+            margin-bottom: 25px; 
+            color: var(--primary); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            padding-bottom: 15px; 
+            border-bottom: 3px solid var(--secondary); 
+        }
+        section h2 i { 
+            font-size: 1.8rem; 
+        }
+
+        /* === ТАБЛИЦЫ === */
+        .responsive-table { 
+            overflow-x: auto; 
+            width: 100%; 
+            border-radius: var(--border-radius); 
+            box-shadow: var(--box-shadow); 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            background: white; 
+            border-radius: var(--border-radius); 
+            overflow: hidden; 
+        }
+        th { 
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+            color: white; 
+            font-weight: 700; 
+            padding: 15px 20px; 
+            text-align: left; 
+            font-size: 1.1rem; 
+        }
+        td { 
+            padding: 12px 20px; 
+            border-bottom: 1px solid #e5e7eb; 
+            font-size: 1rem; 
+        }
+        tr:nth-child(even) { 
+            background-color: #f9fafb; 
+        }
+        tr:hover { 
+            background-color: #f0f7ff; 
+        }
+
+        /* === ПРОГРЕСС БАРЫ === */
+        .progress-bar { 
+            height: 8px; 
+            background: #e5e7eb; 
+            border-radius: 4px; 
+            overflow: hidden; 
+            margin-top: 5px; 
+        }
+        .progress-fill { 
+            height: 100%; 
+            background: linear-gradient(90deg, var(--primary), var(--secondary)); 
+            border-radius: 4px; 
+            width: 0%; 
+            transition: width 0.5s ease; 
+        }
+
+        /* === ГРАФИКИ === */
+        .chart-container { 
+            position: relative; 
+            height: 400px; 
+            margin-top: 20px; 
+            background: white; 
+            border-radius: var(--border-radius); 
+            padding: 20px; 
+            box-shadow: var(--box-shadow); 
+        }
+
+        /* === ЗАГРУЗКА === */
+        .loading { 
+            text-align: center; 
+            padding: 50px 20px; 
+            color: var(--gray); 
+            font-size: 1.3rem; 
+        }
+        .loading-spinner { 
+            border: 5px solid #f3f3f3; 
+            border-top: 5px solid var(--primary); 
+            border-radius: 50%; 
+            width: 50px; 
+            height: 50px; 
+            animation: spin 1s linear infinite; 
+            margin: 20px auto; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        /* === ОШИБКИ === */
+        .error { 
+            background: #fef2f2; 
+            border-left: 4px solid var(--danger); 
+            padding: 20px; 
+            border-radius: var(--border-radius); 
+            margin: 20px 0; 
+            color: var(--danger); 
+            font-weight: 500; 
+        }
+
+        /* === ПУСТОЕ СОСТОЯНИЕ === */
+        .empty-state { 
+            text-align: center; 
+            padding: 40px 20px; 
+            color: var(--gray); 
+        }
+        .empty-state i { 
+            font-size: 3rem; 
+            margin-bottom: 15px; 
+            opacity: 0.5; 
+        }
+
+        /* === MVP КАРТОЧКИ === */
+        .mvp-card { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border-radius: var(--border-radius); 
+            padding: 25px; 
+            text-align: center; 
+            box-shadow: 0 10px 25px rgba(102,126,234,0.4); 
+            margin-bottom: 20px; 
+            transition: var(--transition); 
+        }
+        .mvp-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 15px 35px rgba(102,126,234,0.6); 
+        }
+        .mvp-card .player-name { 
+            font-size: 2rem; 
+            font-weight: 800; 
+            margin: 10px 0; 
+        }
+        .mvp-card .votes { 
+            font-size: 1.5rem; 
+            margin: 5px 0; 
+            display: flex; 
+            justify-content: center; 
+            gap: 5px; 
+            align-items: center; 
+        }
+        .mvp-card .votes i { 
+            color: gold; 
+        }
+        .mvp-card .location { 
+            background: rgba(255,255,255,0.2); 
+            display: inline-block; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            margin-top: 10px; 
+            font-size: 0.9rem; 
+        }
+
+        /* === ДОСТИЖЕНИЯ === */
+        .achievements-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); 
+            gap: 20px; 
+            margin-top: 20px; 
+        }
+        .achievement-card { 
+            background: white; 
+            border-radius: var(--border-radius); 
+            padding: 20px; 
+            box-shadow: var(--box-shadow); 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            transition: var(--transition); 
+            border-left: 4px solid var(--primary); 
+        }
+        .achievement-card:hover { 
+            transform: translateX(5px); 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15); 
+        }
+        .achievement-card.unlocked { 
+            border-left-color: var(--success); 
+            background: #f0fdf4; 
+        }
+        .achievement-icon { 
+            font-size: 2.5rem; 
+            min-width: 60px; 
+            text-align: center; 
+        }
+        .achievement-info h3 { 
+            font-size: 1.3rem; 
+            margin-bottom: 5px; 
+            color: var(--dark); 
+        }
+        .achievement-info p { 
+            color: var(--gray); 
+            font-size: 0.95rem; 
+            line-height: 1.5; 
+        }
+        .achievement-progress { 
+            margin-top: 8px; 
+            font-size: 0.9rem; 
+            color: var(--primary); 
+            font-weight: 600; 
+        }
+
+        /* === КОНТАКТЫ === */
+        .contacts-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); 
+            gap: 30px; 
+            margin-top: 20px; 
+        }
+        .contact-card { 
+            background: white; 
+            border-radius: var(--border-radius); 
+            padding: 25px; 
+            box-shadow: var(--box-shadow); 
+            transition: var(--transition); 
+        }
+        .contact-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+        }
+        .contact-card h3 { 
+            font-size: 1.5rem; 
+            margin-bottom: 20px; 
+            color: var(--primary); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        .contact-card h3 i { 
+            font-size: 1.8rem; 
+        }
+        .contact-item { 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 15px; 
+            margin-bottom: 15px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid #e5e7eb; 
+        }
+        .contact-item:last-child { 
+            border-bottom: none; 
+            margin-bottom: 0; 
+            padding-bottom: 0; 
+        }
+        .contact-icon { 
+            min-width: 30px; 
+            font-size: 1.3rem; 
+            color: var(--primary); 
+            margin-top: 3px; 
+        }
+        .contact-text a { 
+            color: var(--primary); 
+            text-decoration: none; 
+            font-weight: 600; 
+            transition: var(--transition); 
+        }
+        .contact-text a:hover { 
+            color: var(--secondary); 
+            text-decoration: underline; 
+        }
+
+        /* === ФУТЕР === */
+        footer { 
+            background: rgba(255,255,255,0.95); 
+            padding: 30px 0; 
+            text-align: center; 
+            margin-top: 40px; 
+            border-top: 3px solid var(--secondary); 
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1); 
+        }
+        .footer-content { 
+            max-width: 800px; 
+            margin: 0 auto; 
+        }
+        .footer-logo { 
+            font-size: 2rem; 
+            font-weight: 800; 
+            margin-bottom: 15px; 
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            color: transparent; 
+        }
+        .footer-text { 
+            color: var(--gray); 
+            margin-bottom: 20px; 
+            font-size: 1.1rem; 
+        }
+        .social-links { 
+            display: flex; 
+            justify-content: center; 
+            gap: 20px; 
+            margin-top: 20px; 
+        }
+        .social-link { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 50%; 
+            background: var(--primary); 
+            color: white; 
+            font-size: 1.3rem; 
+            transition: var(--transition); 
+            text-decoration: none; 
+        }
+        .social-link:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 5px 15px rgba(26,115,232,0.4); 
+        }
+        .copyright { 
+            margin-top: 25px; 
+            color: var(--gray); 
+            font-size: 0.95rem; 
+            padding-top: 20px; 
+            border-top: 1px solid #e5e7eb; 
+        }
+
+        /* === БЕЙДЖИ === */
+        .badge { 
+            display: inline-block; 
+            padding: 3px 10px; 
+            border-radius: 15px; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            margin-left: 8px; 
+        }
+        .badge-new { 
+            background: linear-gradient(45deg, #ef4444, #f97316); 
+            color: white; 
+        }
+        .badge-popular { 
+            background: linear-gradient(45deg, #8b5cf6, #ec4899); 
+            color: white; 
+        }
+
+        /* === КНОПКИ === */
+        .btn { 
+            display: inline-block; 
+            background: linear-gradient(45deg, var(--primary), var(--secondary)); 
+            color: white; 
+            padding: 12px 30px; 
+            border-radius: 50px; 
+            text-decoration: none; 
+            font-weight: 700; 
+            font-size: 1.1rem; 
+            transition: var(--transition); 
+            border: none; 
+            cursor: pointer; 
+            box-shadow: 0 4px 10px rgba(26,115,232,0.3); 
+        }
+        .btn:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 6px 15px rgba(26,115,232,0.4); 
+        }
+        .btn-telegram { 
+            background: linear-gradient(45deg, #0088cc, #00b0ed); 
+        }
+
+        /* === СЕКЦИИ НАВИГАЦИИ === */
+        .section { 
+            display: none; 
+        }
+        .section.active { 
+            display: block; 
+            animation: fadeIn 0.5s ease; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        /* === QR КОД === */
+        .qr-code-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .qr-code-image {
+            max-width: 200px;
+            border-radius: 12px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+        .qr-code-image:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .qr-code-info {
+            text-align: left;
+            max-width: 400px;
+        }
+        .qr-code-info h3 {
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        .qr-code-info p {
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+
+        /* === АДАПТИВНОСТЬ === */
+        @media (max-width: 768px) {
+            .header-content { 
+                flex-direction: column; 
+                gap: 15px; 
+            }
+            nav ul { 
+                flex-wrap: wrap; 
+                justify-content: center; 
+            }
+            nav a { 
+                padding: 8px 15px; 
+                font-size: 0.9rem; 
+            }
+            .hero h1 { 
+                font-size: 2.5rem; 
+            }
+            .hero p { 
+                font-size: 1.2rem; 
+            }
+            section { 
+                padding: 20px; 
+            }
+            section h2 { 
+                font-size: 1.8rem; 
+            }
+            th, td { 
+                padding: 8px 12px; 
+                font-size: 0.9rem; 
+            }
+            .chart-container { 
+                height: 300px; 
+            }
+            .stat-card .number { 
+                font-size: 1.8rem; 
+            }
+            .stat-card .label { 
+                font-size: 0.95rem; 
+            }
+            .qr-code-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .qr-code-image {
+                max-width: 150px;
+            }
+        }
+        @media (max-width: 480px) {
+            .logo-text { 
+                font-size: 1.5rem; 
+            }
+            nav a { 
+                padding: 6px 12px; 
+                font-size: 0.85rem; 
+            }
+            .hero { 
+                padding: 30px 15px; 
+            }
+            .hero h1 { 
+                font-size: 2rem; 
+            }
+            .stats-cards { 
+                grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); 
+            }
+            .stat-card { 
+                padding: 15px; 
+            }
+            .stat-card .number { 
+                font-size: 1.5rem; 
+            }
+            section { 
+                padding: 15px; 
+            }
+            section h2 { 
+                font-size: 1.6rem; 
+            }
+            th, td { 
+                padding: 6px 10px; 
+                font-size: 0.85rem; 
+            }
+            .chart-container { 
+                height: 250px; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <div class="logo-icon">⚽</div>
+                <div>
+                    <div class="logo-text">MosFoot Bot</div>
+                    <div class="logo-subtext">Официальная статистика футбольного сообщества</div>
+                </div>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#home" class="nav-link active" data-section="home"><i class="fas fa-home"></i> Главная</a></li>
+                    <li><a href="#games" class="nav-link" data-section="games"><i class="fas fa-futbol"></i> Игры</a></li>
+                    <li><a href="#goals" class="nav-link" data-section="goals"><i class="fas fa-bullseye"></i> Голы</a></li>
+                    <li><a href="#assists" class="nav-link" data-section="assists"><i class="fas fa-handshake"></i> Передачи</a></li>
+                    <li><a href="#locations" class="nav-link" data-section="locations"><i class="fas fa-map-marker-alt"></i> Локации</a></li>
+                    <li><a href="#mvp" class="nav-link" data-section="mvp"><i class="fas fa-star"></i> MVP <span class="badge badge-new">NEW</span></a></li>
+                    <li><a href="#achievements" class="nav-link" data-section="achievements"><i class="fas fa-trophy"></i> Достижения <span class="badge badge-popular">TOP</span></a></li>
+                    <li><a href="#contacts" class="nav-link" data-section="contacts"><i class="fas fa-phone"></i> Контакты</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="home" class="section active">
+            <div class="hero">
+                <h1>⚽ MosFoot Bot</h1>
+                <p>Официальная статистика футбольного сообщества MosFoot. Отслеживай свои достижения, смотри рейтинги и голосуй за лучших игроков!</p>
+                <a href="https://t.me/+-qSos-AnccRlYzIy" class="btn btn-telegram" target="_blank">
+                    <i class="fab fa-telegram-plane"></i> Вступить в группу в Telegram
+                </a>
+            </div>
+            
+            <!-- QR КОД ДЛЯ ВСТУПЛЕНИЯ В ГРУППУ -->
+            <!-- ИНСТРУКЦИЯ ДЛЯ РАЗРАБОТЧИКОВ: Чтобы изменить изображение, замените значение атрибута src на строке 416 -->
+            <!-- Загрузите ваше изображение на хостинг (imgur.com, postimages.org и т.д.) и вставьте прямую ссылку -->
+            <div class="qr-code-container">
+                <img 
+                    src="https://i.postimg.cc/TYnh8KVG/qr-tmp.png" 
+                    alt="QR код для вступления в группу Telegram MosFoot" 
+                    class="qr-code-image"
+                    onerror="this.src='image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiB2aWV3Qm94PSIwIDAgMjAwIDIwMCI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNmZmYiLz48dGV4dCB4PSIxMDAiIHk9IjEwMCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMDAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5QRVJTT05BTElaQVRFTiBRTyBDS09EIEdPIEhFUkU8L3RleHQ+PC9zdmc+'"
+                >
+            </div>
+            
+            <div class="stats-cards">
+                <div class="stat-card"><i class="fas fa-users"></i><div class="number" id="total-players">-</div><div class="label">Всего игроков</div></div>
+                <div class="stat-card"><i class="fas fa-futbol"></i><div class="number" id="total-games">-</div><div class="label">Сыграно игр</div></div>
+                <div class="stat-card"><i class="fas fa-bullseye"></i><div class="number" id="total-goals">-</div><div class="label">Забито голов</div></div>
+                <div class="stat-card"><i class="fas fa-handshake"></i><div class="number" id="total-assists">-</div><div class="label">Сделано передач</div></div>
+            </div>
+            <div class="chart-container"><canvas id="gamesChart"></canvas></div>
+        </section>
+
+        <section id="games" class="section">
+            <h2><i class="fas fa-futbol"></i> Топ по сыгранным играм</h2>
+            <div class="responsive-table">
+                <table id="games-table">
+                    <thead><tr><th>Место</th><th>Игрок</th><th>Игр сыграно</th><th>Прогресс</th></tr></thead>
+                    <tbody><tr><td colspan="4" class="loading"><div class="loading-spinner"></div>Загрузка статистики...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="goals" class="section">
+            <h2><i class="fas fa-bullseye"></i> Топ бомбардиров</h2>
+            <div class="responsive-table">
+                <table id="goals-table">
+                    <thead><tr><th>Место</th><th>Игрок</th><th>Голов</th><th>Игр</th><th>Среднее за игру</th><th>Прогресс</th></tr></thead>
+                    <tbody><tr><td colspan="6" class="loading"><div class="loading-spinner"></div>Загрузка статистики...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="assists" class="section">
+            <h2><i class="fas fa-handshake"></i> Топ ассистентов</h2>
+            <div class="responsive-table">
+                <table id="assists-table">
+                    <thead><tr><th>Место</th><th>Игрок</th><th>Передач</th><th>Игр</th><th>Среднее за игру</th><th>Прогресс</th></tr></thead>
+                    <tbody><tr><td colspan="6" class="loading"><div class="loading-spinner"></div>Загрузка статистики...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="locations" class="section">
+            <h2><i class="fas fa-map-marker-alt"></i> Популярные локации</h2>
+            <div class="responsive-table">
+                <table id="locations-table">
+                    <thead><tr><th>Место</th><th>Локация</th><th>Игр проведено</th><th>Средняя посещаемость</th><th>Прогресс</th></tr></thead>
+                    <tbody><tr><td colspan="5" class="loading"><div class="loading-spinner"></div>Загрузка статистики...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="mvp" class="section">
+            <h2><i class="fas fa-star"></i> Лучшие игроки матчей (MVP)</h2>
+            <p style="margin-bottom:20px;color:var(--gray);"><i class="fas fa-info-circle"></i> Игроки голосуют за лучших игроков после каждой игры. Голосование доступно в течение 24 часов.</p>
+            <div id="mvp-container"><div class="loading"><div class="loading-spinner"></div>Загрузка результатов голосования...</div></div>
+        </section>
+
+        <section id="achievements" class="section">
+            <h2><i class="fas fa-trophy"></i> Достижения игроков</h2>
+            <p style="margin-bottom:20px;color:var(--gray);"><i class="fas fa-info-circle"></i> Игроки получают достижения за определенные успехи в играх. Чем больше играешь, тем больше наград!</p>
+            <div id="achievements-container"><div class="loading"><div class="loading-spinner"></div>Загрузка достижений...</div></div>
+        </section>
+
+        <section id="contacts" class="section">
+            <h2><i class="fas fa-phone"></i> Контакты организаторов</h2>
+            <p style="margin-bottom:25px;font-size:1.1rem;color:var(--dark);">Свяжитесь с организаторами сообщества MosFoot для получения дополнительной информации, предложений или помощи.</p>
+            <div class="contacts-grid">
+                <div class="contact-card">
+                    <h3><i class="fas fa-user-tie"></i> Организатор</h3>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fab fa-telegram"></i></div>
+                        <div class="contact-text"><a href="https://t.me/organizer_username" target="_blank">@organizer_username</a></div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fab fa-vk"></i></div>
+                        <div class="contact-text"><a href="https://vk.ru/mos_foot" target="_blank">vk.ru/mos_foot</a></div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="contact-text"><a href="mailto:yakushev.88@yandex.ru">yakushev.88@yandex.ru</a></div>
+                    </div>
+                </div>
+                <div class="contact-card">
+                    <h3><i class="fas fa-users"></i> Группы сообщества</h3>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fab fa-telegram"></i></div>
+                        <div class="contact-text"><a href="https://t.me/+-qSos-AnccRlYzIy" target="_blank">Телеграм-группа</a></div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fab fa-vk"></i></div>
+                        <div class="contact-text"><a href="https://vk.ru/mos_foot" target="_blank">Группа ВКонтакте</a></div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-globe"></i></div>
+                        <div class="contact-text"><a href="https://ваш-сайт.ru" target="_blank">Официальный сайт</a></div>
+                    </div>
+                </div>
+                <div class="contact-card">
+                    <h3><i class="fas fa-comments"></i> Обратная связь</h3>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="contact-text"><a href="mailto:feedback@mosfoot.ru">feedback@mosfoot.ru</a></div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-bug"></i></div>
+                        <div class="contact-text">Сообщить об ошибке в боте или на сайте</div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon"><i class="fas fa-lightbulb"></i></div>
+                        <div class="contact-text">Предложить улучшение системы</div>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:30px;">
+                <a href="https://t.me/+-qSos-AnccRlYzIy" class="btn btn-telegram" target="_blank">
+                    <i class="fab fa-telegram-plane"></i> Вступить в группу в Telegram
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-logo">MosFoot Bot</div>
+            <p class="footer-text">Официальная статистика футбольного сообщества MosFoot. Все права защищены.</p>
+            <div class="social-links">
+                <a href="https://t.me/+-qSos-AnccRlYzIy" class="social-link" target="_blank"><i class="fab fa-telegram-plane"></i></a>
+                <a href="https://vk.ru/mos_foot" class="social-link" target="_blank"><i class="fab fa-vk"></i></a>
+                <a href="mailto:yakushev.88@yandex.ru" class="social-link" target="_blank"><i class="fas fa-envelope"></i></a>
+            </div>
+            <p class="copyright">&copy; 2026 MosFoot Community. Создано с ❤️ для настоящих футбольных фанатов.</p>
+        </div>
+    </footer>
+
+    <script>
+        /* === ПРОВЕРКА НАЛИЧИЯ ПЕРЕМЕННОЙ SUPABASE === */
+        // ✅ ИСПРАВЛЕНО: Проверяем, существует ли переменная перед объявлением
+        if (typeof supabase === 'undefined') {
+            /* === НАСТРОЙКИ SUPABASE === */
+            // ⚠️ ЗАМЕНИТЕ НА ВАШИ РЕАЛЬНЫЕ ЗНАЧЕНИЯ ИЗ ФАЙЛА МОИ_ДАННЫЕ.TXT
+            const SUPABASE_CONFIG = {
+                url: 'https://xwkvyzwvdhswlqnhhpns.supabase.co',  // ← ЗАМЕНИТЕ НА ВАШ URL
+                key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3a3Z5end2ZGhzd2xxbmhocG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODM2NzIsImV4cCI6MjA4NTQ1OTY3Mn0.T6bMxkJZoGGNR_RrgfVvHy0Irx0ccWMckvnZacSsrlM'              // ← ЗАМЕНИТЕ НА ВАШ КЛЮЧ
+            };
+
+            /* === ИНИЦИАЛИЗАЦИЯ КЛИЕНТА SUPABASE === */
+            // ✅ Устранено дублирование переменной - объявлена ОДИН РАЗ
+            const supabase = window.supabase.create({
+                url: SUPABASE_CONFIG.url,
+                key: SUPABASE_CONFIG.key
+            });
+        }
+
+        /* === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ === */
+        
+        /**
+         * Экранирование HTML для предотвращения XSS-атак
+         * @param {string} text - Текст для экранирования
+         * @returns {string} - Экранированный текст
+         */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        /**
+         * Форматирование чисел с разделителями тысяч
+         * @param {number} num - Число для форматирования
+         * @returns {string} - Отформатированная строка
+         */
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+        }
+
+        /**
+         * Получение окончания для порядковых числительных
+         * @param {number} i - Порядковый номер
+         * @returns {string} - Окончание ("й", "й", "й" или "й")
+         */
+        function getOrdinalSuffix(i) {
+            const j = i % 10;
+            const k = i % 100;
+            if (j === 1 && k !== 11) return "й";
+            if (j === 2 && k !== 12) return "й";
+            if (j === 3 && k !== 13) return "й";
+            return "й";
+        }
+
+        /* === НАВИГАЦИЯ === */
+        
+        /**
+         * Инициализация навигации по разделам
+         */
+        function initNavigation() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    
+                    const targetSectionId = link.getAttribute('data-section');
+                    
+                    // Убираем активный класс со всех ссылок
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    
+                    // Добавляем активный класс к текущей ссылке
+                    link.classList.add('active');
+                    
+                    // Скрываем все секции
+                    document.querySelectorAll('.section').forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    
+                    // Показываем целевую секцию
+                    document.getElementById(targetSectionId).classList.add('active');
+                    
+                    // Плавная прокрутка наверх
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        }
+
+        /* === ЗАГРУЗКА СТАТИСТИКИ === */
+        
+        /**
+         * Загрузка статистики из базы данных
+         * @async
+         */
+        async function loadStats() {
+            try {
+                // Пример загрузки данных (реализация зависит от вашей БД)
+                // В реальном приложении здесь будет запрос к Supabase
+                
+                // Устанавливаем демо-данные
+                document.getElementById('total-players').textContent = '28';
+                document.getElementById('total-games').textContent = '45';
+                document.getElementById('total-goals').textContent = '156';
+                document.getElementById('total-assists').textContent = '89';
+                
+                // Инициализация графика
+                const ctx = document.getElementById('gamesChart').getContext('2d');
+                
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн'],
+                        datasets: [{
+                            label: 'Игр в неделю',
+                            data: [5, 8, 12, 15, 18, 22],
+                            borderColor: '#1a73e8',
+                            backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#fbbc05',
+                            pointBorderColor: '#1a73e8',
+                            pointBorderWidth: 2,
+                            pointRadius: 6,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Динамика игр по неделям'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 5
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки статистики:', error);
+                
+                // Показываем сообщение об ошибке
+                document.querySelectorAll('.loading').forEach(el => {
+                    el.outerHTML = `<div class="error">❌ Ошибка загрузки данных. Проверьте подключение к интернету и настройки базы данных.</div>`;
+                });
+            }
+        }
+
+        /* === ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ === */
+        
+        /**
+         * Основная функция инициализации приложения
+         */
+        function initApp() {
+            // Инициализируем навигацию
+            initNavigation();
+            
+            // Загружаем статистику
+            loadStats();
+            
+            // Для демо: имитация загрузки данных через 2 секунды
+            setTimeout(() => {
+                document.querySelectorAll('.loading').forEach(el => {
+                    const parent = el.closest('tr, #mvp-container, #achievements-container');
+                    if (parent) {
+                        if (el.id === 'mvp-container' || el.id === 'achievements-container') {
+                            el.innerHTML = `<div class="empty-state">
+                                <i class="fas fa-futbol"></i>
+                                <p>Демо-данные загружены успешно!</p>
+                            </div>`;
+                        } else {
+                            parent.remove();
+                        }
+                    }
+                });
+            }, 2000);
+        }
+
+        /* === ЗАПУСК ПРИЛОЖЕНИЯ === */
+        // Дожидаемся полной загрузки документа
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
